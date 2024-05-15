@@ -1,0 +1,386 @@
+---
+title: "Advanced Regression Analysis (6301)"
+author: "Sai Krishna Nandyala"
+output: word_document
+---
+```{r}
+library(readxl)
+library(dplyr)
+library(ggplot2)
+```
+
+```{r}
+data <- read_excel("dataset.xlsx", sheet = "All cases")
+df <- data[,c('Age','Sex','Migratory_Pain',
+              'Lower_Right_Abd_Pain','Coughing_Pain',
+              'Loss_of_Appetite','Nausea',
+              'Body_Temperature','Diagnosis')]
+names(df) <- c('Age', 'Gender','Migratory Pain',
+               'Lower Right Abd Pain','Coughing Pain',
+               'Anorexia','Nausea','Body Temperature','Diagnosis')
+
+```
+
+
+
+
+```{r}
+head(df)
+```
+
+
+```{r}
+dim(df)
+```
+
+
+```{r}
+df$Age <- floor(df$Age)
+```
+
+
+```{r}
+colnames(df)
+```
+
+```{r}
+colSums(is.na(df))
+```
+
+
+```{r}
+summary(df)
+```
+
+
+```{r}
+catColumns <- names(df)[sapply(df, is.character)]
+numColumns <- names(df)[sapply(df, is.numeric)]
+```
+
+
+```{r}
+Mode <- function(x) {
+  ux <- unique(x)
+  ux[which.max(tabulate(match(x, ux)))]
+}
+for (col in catColumns) {
+  df[[col]] <- ifelse(is.na(df[[col]]), Mode(df[[col]]), df[[col]])
+}
+for (col in numColumns) {
+  df[[col]] <- ifelse(is.na(df[[col]]), mean(df[[col]], na.rm = TRUE), df[[col]])
+}
+```
+
+
+```{r}
+df$Age <- floor(df$Age)
+```
+
+```{r}
+colSums(is.na(df))
+```
+
+
+```{r}
+total_count <- df %>%
+  group_by(Age) %>%
+  summarise(TotalCount = n())
+filtered_data <- df %>%
+  filter(Diagnosis == "appendicitis") %>%
+  group_by(Age) %>%
+  summarise(Count = n())
+filtered_data
+ggplot(filtered_data, aes(x = Age, y = Count)) +
+  geom_line(color="red") +  # Line plot
+  geom_point(color="blue",size=2) +   # Points on the line
+  geom_text(aes(label = Count), vjust = -0.5, color = "black") + 
+  scale_y_continuous(limits = c(0, 70))+
+  scale_x_continuous(breaks = seq(min(filtered_data$Age), max(filtered_data$Age), by = 1)) + # Adding text labels above each point
+  labs(x = "Age", y = "Diagnosis of Appendicitis", title = "Trend of Appendicitis by Age") +
+  theme_classic() 
+```
+
+
+```{r}
+filtered_data <- df %>%
+  filter(Diagnosis == "no appendicitis") %>%
+  group_by(Age) %>%
+  summarise(Count = n())
+filtered_data
+ggplot(filtered_data, aes(x = Age, y = Count)) +
+  geom_line(color="red") +  # Line plot
+  geom_point(color="blue",size=2) +   # Points on the line
+  geom_text(aes(label = Count), vjust = -0.5, color = "black") + 
+  scale_x_continuous(breaks = seq(min(filtered_data$Age), max(filtered_data$Age), by = 1)) + # Adding text labels above each point
+  scale_y_continuous(limits = c(0, 60))+
+  labs(x = "Age", y = "Diagnosis of No Appendicitis", title = "Trend of No Appendicitis by Age") +
+  theme_classic() 
+```
+
+
+```{r}
+filtered_data <- merge(filtered_data, total_count, by = "Age")
+filtered_data <- filtered_data %>%
+  mutate(Percentage = (Count / TotalCount) * 100)
+ggplot(filtered_data, aes(x = Age, y = Percentage)) +
+  geom_line(color = "red") +  # Line plot
+  geom_point(color = "blue", size = 2) +   # Points on the line
+  geom_text(data = filtered_data %>% filter(row_number() %% 2 == 0), aes(label = paste0(round(Percentage, 1), "%")), vjust = -0.5, color = "black") + 
+  scale_x_continuous(breaks = seq(min(filtered_data$Age), max(filtered_data$Age), by = 1)) + # Adding text labels above each point
+  scale_y_continuous(limits = c(0, 60))+
+  labs(x = "Age", y = "Percentage of Appendicitis Cases", title = "Trend of Appendicitis by Age (Percentage)") +
+  theme_classic()
+```
+
+
+```{r}
+total_counts <- df %>%
+  group_by(Diagnosis) %>%
+  summarise(total_count = n())
+gender_counts <- df %>%
+  group_by(Diagnosis, Gender) %>%
+  summarise(count = n()) %>%
+  mutate(percentage = count / sum(count) * 100)
+ggplot(df, aes(x = Diagnosis, fill = Gender)) +
+  geom_bar(position = "dodge") +
+  labs(x = "Diagnosis", y = "Count", title = "Bar Graph : Diagnosis vs Gender") +
+  theme_classic() +
+  scale_fill_brewer(palette = "Paired") +
+  scale_y_continuous(limits = c(0, 300))+
+  geom_text(data = gender_counts, aes(label = paste0(count, " (", round(percentage, 1), "%)"), y = count),
+            position = position_dodge(width = 0.9), vjust = -0.5)
+```
+
+```{r}
+total_counts <- df %>%
+  group_by(Diagnosis) %>%
+  summarise(total_count = n())
+migratory_pain_counts <- df %>%
+  group_by(Diagnosis, `Migratory Pain`) %>%
+  summarise(count = n()) %>%
+  mutate(percentage = count / sum(count) * 100)
+ggplot(df, aes(x = Diagnosis, fill = `Migratory Pain`)) +
+  geom_bar(position = "dodge") +
+  labs(x = "Diagnosis", y = "Count", title = "Bar Graph : Diagnosis vs Migratory Pain") +
+  theme_classic() +
+  scale_fill_brewer(palette = "Paired") +
+  scale_y_continuous(limits = c(0, 370))+
+  geom_text(data = migratory_pain_counts, aes(label = paste0(count, " (", round(percentage, 1), "%)"), y = count),
+            position = position_dodge(width = 0.9), vjust = -0.5)
+```
+
+
+```{r}
+total_counts <- df %>%
+  group_by(Diagnosis) %>%
+  summarise(total_count = n())
+lower_right_abd_pain_counts <- df %>%
+  group_by(Diagnosis, `Lower Right Abd Pain`) %>%
+  summarise(count = n()) %>%
+  mutate(percentage = count / sum(count) * 100)
+ggplot(df, aes(x = Diagnosis, fill = `Lower Right Abd Pain`)) +
+  geom_bar(position = "dodge") +
+  labs(x = "Diagnosis", y = "Count", title = "Bar Graph : Diagnosis vs Lower Right Abd Pain") +
+  theme_classic() +
+  scale_fill_brewer(palette = "Paired") +
+  scale_y_continuous(limits = c(0, 470))+
+  geom_text(data = lower_right_abd_pain_counts, aes(label = paste0(round(count, 1), " (", round(percentage, 1), "%)"), y = count),
+            position = position_dodge(width = 0.9), vjust = -0.5)
+```
+
+
+```{r}
+total_counts <- df %>%
+  group_by(Diagnosis) %>%
+  summarise(total_count = n())
+coughing_pain_counts <- df %>%
+  group_by(Diagnosis, `Coughing Pain`) %>%
+  summarise(count = n()) %>%
+  mutate(percentage = count / sum(count) * 100)
+ggplot(df, aes(x = Diagnosis, fill = `Coughing Pain`)) +
+  geom_bar(position = "dodge") +
+  labs(x = "Diagnosis", y = "Count", title = "Bar Graph : Diagnosis vs Coughing Pain") +
+  theme_classic() +
+  scale_fill_brewer(palette = "Paired") +
+  scale_y_continuous(limits = c(0, 350))+
+  geom_text(data = coughing_pain_counts, aes(label = paste0(count, " (", round(percentage, 1), "%)"), y = count),
+            position = position_dodge(width = 0.9), vjust = -0.5)
+```
+
+
+```{r}
+total_counts <- df %>%
+  group_by(Diagnosis) %>%
+  summarise(total_count = n())
+anorexia_counts <- df %>%
+  group_by(Diagnosis, Anorexia) %>%
+  summarise(count = n()) %>%
+  mutate(percentage = count / sum(count) * 100)
+ggplot(df, aes(x = Diagnosis, fill = Anorexia)) +
+  geom_bar(position = "dodge") +
+  labs(x = "Diagnosis", y = "Count", title = "Bar Graph : Diagnosis vs Anorexia") +
+  theme_classic() +
+  scale_fill_brewer(palette = "Paired") +
+  scale_y_continuous(limits = c(0, 300))+
+  geom_text(data = anorexia_counts, aes(label = paste0(count, " (", round(percentage, 1), "%)"), y = count),
+            position = position_dodge(width = 0.9), vjust = -0.5)
+```
+
+```{r}
+total_counts <- df %>%
+  group_by(Diagnosis) %>%
+  summarise(total_count = n())
+nausea_counts <- df %>%
+  group_by(Diagnosis, Nausea) %>%
+  summarise(count = n()) %>%
+  mutate(percentage = count / sum(count) * 100)
+ggplot(df, aes(x = Diagnosis, fill = Nausea)) +
+  geom_bar(position = "dodge") +
+  labs(x = "Diagnosis", y = "Count", title = "Bar Graph : Diagnosis vs Nausea") +
+  theme_classic() +
+  scale_fill_brewer(palette = "Paired") +
+  scale_y_continuous(limits = c(0, 350))+
+  geom_text(data = nausea_counts, aes(label = paste0(count, " (", round(percentage, 1), "%)"), y = count),
+            position = position_dodge(width = 0.9), vjust = -0.5)
+```
+
+```{r}
+cor(df[,numColumns])
+```
+
+
+```{r}
+#Encoding
+df$Gender<- ifelse(df$Gender == "male", 1, 0)
+df$`Migratory Pain` <- ifelse(df$`Migratory Pain` == "yes", 1, 0)
+df$`Lower Right Abd Pain` <- ifelse(df$`Lower Right Abd Pain` == "yes", 1, 0)
+df$`Coughing Pain` <- ifelse(df$`Coughing Pain` == "yes", 1, 0)
+df$Anorexia <- ifelse(df$Anorexia == "yes", 1, 0)
+df$Nausea <- ifelse(df$Nausea == "yes", 1, 0)
+df$Diagnosis<- ifelse(df$Diagnosis == "appendicitis", 1, 0)
+```
+
+
+```{r}
+head(df)
+```
+
+
+```{r}
+#Scaling
+df[-which(names(df) == "Diagnosis")] <- scale(df[-which(names(df) == "Diagnosis")])
+```
+
+```{r}
+#Modeling
+#Full Model
+fullModel<- glm(Diagnosis ~ Age+Gender+`Migratory Pain`+`Lower Right Abd Pain`+
+                            `Coughing Pain`+Anorexia+Nausea+`Body Temperature`, 
+                            data = df, family = binomial(link = "logit"))
+summary(fullModel)
+```
+
+```{r}
+#Simple Model
+simpleModel<- glm(Diagnosis ~ Gender+`Lower Right Abd Pain`+Anorexia+
+                              Nausea+`Body Temperature`, 
+                              data = df, family = binomial(link = "logit"))
+summary(simpleModel)
+
+```
+
+
+```{r}
+#Interaction Model 1
+IM1 <- glm(Diagnosis ~Gender*`Lower Right Abd Pain` + 
+                      Gender*Anorexia + 
+                      Gender*Nausea + 
+                      Gender*`Body Temperature` + 
+                      `Lower Right Abd Pain`*Anorexia+ 
+                      `Lower Right Abd Pain`*Nausea+ 
+                      `Lower Right Abd Pain`*`Body Temperature`+ 
+                      Anorexia*Nausea+
+                      Anorexia*`Body Temperature`+
+                      Nausea*`Body Temperature`, 
+                      data = df, family = binomial(link = "logit"))
+summary(IM1)
+
+```
+
+```{r}
+#Interaction Model 2
+IM2 <- glm(Diagnosis ~ Gender*`Body Temperature` +`Lower Right Abd Pain`+
+             Anorexia+Nausea , 
+           data = df, family = binomial(link = "logit"))
+summary(IM2)
+
+```
+
+
+```{r}
+lrt_result1 <- anova(simpleModel, fullModel, test = "Chisq")
+lrt_result1
+```
+
+
+
+```{r}
+lrt_result2 <- anova(simpleModel, IM1, test = "Chisq")
+lrt_result2
+```
+
+```{r}
+lrt_result3 <- anova(simpleModel, IM2, test = "Chisq")
+lrt_result3
+
+```
+
+
+```{r}
+pvals <- data.frame(
+  Comparision = c( "Simple Model vs Full Model", "Simple Model vs Interaction Model 1","Simple Model vs Interaction Model 2"),
+  `p-values` = c(round(lrt_result1$`Pr(>Chi)`[2],2),round(lrt_result2$`Pr(>Chi)`[2],2), round(lrt_result3$`Pr(>Chi)`[2],2))
+  )
+print(pvals)
+
+```
+
+```{r}
+results <- data.frame(
+  Model = c("Full Model", "Simple Model", "Interaction Model 1","Interaction Model 2"),
+  AIC = c(AIC(fullModel), AIC(simpleModel), AIC(IM1),AIC(IM2)),
+  BIC = c(BIC(fullModel), BIC(simpleModel), BIC(IM1),BIC(IM2))
+)
+print(results)
+
+```
+
+
+```{r}
+coefficients <- coef(IM2)
+odds_ratios <- exp(coefficients)
+odds_ratio_simple <- data.frame(
+  Coefficients = coefficients,
+  OddsRatio = odds_ratios
+)
+odds_ratio_simple <- round(odds_ratio_simple, 2)
+print(odds_ratio_simple)
+
+```
+
+```{r}
+
+
+```
+
+
+```{r}
+
+
+```
+
+```{r}
+
+
+```
